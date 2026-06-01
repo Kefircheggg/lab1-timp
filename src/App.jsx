@@ -10,7 +10,7 @@ export default function App() {
     <div className="layout">
       <header className="topbar">
         <Link to="/" className="brand">
-          Журнал инцидентов безопасности в образовательных учреждениях
+          Журнал инцидентов безопасности в медицинских учреждениях
         </Link>
       </header>
       <main className="content">
