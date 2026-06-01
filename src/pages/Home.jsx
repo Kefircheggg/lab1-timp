@@ -10,6 +10,21 @@ const SEVERITY_CLASS = {
   'Критическая': 'sev sev--crit',
 };
 
+const STATUS_ORDER = { 'Открыт': 0, 'В работе': 1, 'Закрыт': 2 };
+const SEVERITY_ORDER = { 'Низкая': 0, 'Средняя': 1, 'Высокая': 2, 'Критическая': 3 };
+
+const DEFAULT_SORT = { field: 'default', dir: 'asc' };
+
+const COLUMNS = [
+  { field: 'id', label: '№', initialDir: 'asc' },
+  { field: 'title', label: 'Наименование', initialDir: 'asc' },
+  { field: 'institution', label: 'Учреждение', initialDir: 'asc' },
+  { field: 'type', label: 'Тип', initialDir: 'asc' },
+  { field: 'date', label: 'Дата', initialDir: 'desc' },
+  { field: 'severity', label: 'Критичность', initialDir: 'desc' },
+  { field: 'status', label: 'Статус', initialDir: 'asc' },
+];
+
 const EMPTY_FILTERS = {
   q: '',
   type: '',
@@ -31,10 +46,41 @@ function countBy(items, field) {
   return [...map.entries()].sort((a, b) => b[1] - a[1]);
 }
 
+function compareByField(a, b, field) {
+  switch (field) {
+    case 'id':
+      return a.id - b.id;
+    case 'date':
+      return a.date.localeCompare(b.date);
+    case 'severity':
+      return (SEVERITY_ORDER[a.severity] ?? 99) - (SEVERITY_ORDER[b.severity] ?? 99);
+    case 'status':
+      return (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
+    default:
+      return String(a[field] ?? '').localeCompare(String(b[field] ?? ''), 'ru');
+  }
+}
+
+function sortItems(items, sort) {
+  const arr = [...items];
+  if (sort.field === 'default') {
+    arr.sort((a, b) => {
+      const byStatus = compareByField(a, b, 'status');
+      if (byStatus !== 0) return byStatus;
+      return -compareByField(a, b, 'date');
+    });
+    return arr;
+  }
+  const sign = sort.dir === 'asc' ? 1 : -1;
+  arr.sort((a, b) => sign * compareByField(a, b, sort.field));
+  return arr;
+}
+
 export default function Home() {
   const [items, setItems] = useState([]);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [sort, setSort] = useState(DEFAULT_SORT);
 
   const load = () => {
     setError('');
@@ -69,10 +115,27 @@ export default function Home() {
     });
   }, [items, filters]);
 
+  const sorted = useMemo(() => sortItems(filtered, sort), [filtered, sort]);
+
   const setFilter = (key) => (event) =>
     setFilters((prev) => ({ ...prev, [key]: event.target.value }));
 
   const resetFilters = () => setFilters(EMPTY_FILTERS);
+
+  const handleSort = (col) => {
+    setSort((prev) => {
+      if (prev.field !== col.field) {
+        return { field: col.field, dir: col.initialDir };
+      }
+      if (prev.dir === 'asc') return { field: col.field, dir: 'desc' };
+      return DEFAULT_SORT;
+    });
+  };
+
+  const sortIndicator = (field) => {
+    if (sort.field !== field) return null;
+    return <span className="sort-arrow">{sort.dir === 'asc' ? '▲' : '▼'}</span>;
+  };
 
   const typeOptions = useMemo(() => uniq(items.map((it) => it.type)), [items]);
   const statusOptions = useMemo(() => uniq(items.map((it) => it.status)), [items]);
@@ -208,18 +271,22 @@ export default function Home() {
       <table className="table">
         <thead>
           <tr>
-            <th>№</th>
-            <th>Наименование</th>
-            <th>Учреждение</th>
-            <th>Тип</th>
-            <th>Дата</th>
-            <th>Критичность</th>
-            <th>Статус</th>
+            {COLUMNS.map((col) => (
+              <th
+                key={col.field}
+                onClick={() => handleSort(col)}
+                className={`sortable ${sort.field === col.field ? 'sortable--active' : ''}`}
+                title="Кликните, чтобы изменить сортировку"
+              >
+                {col.label}
+                {sortIndicator(col.field)}
+              </th>
+            ))}
             <th>Действия</th>
           </tr>
         </thead>
         <tbody>
-          {filtered.map((it) => (
+          {sorted.map((it) => (
             <tr key={it.id}>
               <td>{it.id}</td>
               <td>
@@ -246,7 +313,7 @@ export default function Home() {
               </td>
             </tr>
           ))}
-          {filtered.length === 0 && !error && (
+          {sorted.length === 0 && !error && (
             <tr>
               <td colSpan="8" className="empty">
                 {items.length === 0

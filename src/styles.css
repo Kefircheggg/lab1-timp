@@ -136,6 +136,23 @@ a:hover { text-decoration: underline; }
 
 .table tbody tr:nth-child(even) { background: #fafbfd; }
 
+.table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.table th.sortable:hover { background: #e6ebf3; }
+
+.table th.sortable--active { color: var(--primary); }
+
+.sort-arrow {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--primary);
+}
+
 .empty { text-align: center; color: var(--muted); padding: 18px; }
 
 .notice {
